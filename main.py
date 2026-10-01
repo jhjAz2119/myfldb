@@ -205,3 +205,18 @@ def delete_account(req: DeleteAccountReq):
     finally:
         cur.close()
         conn.close()
+
+# ========== 新增：版本信息接口 ==========
+@app.get("/version-info", summary="获取版本信息")
+def get_version_info():
+    """
+    返回应用版本信息
+    有新版本时直接修改下面的值即可
+    """
+    return {
+        "currentVersion": "1.0.0",
+        "latestVersion": "1.0.0",
+        "downloadUrl": "",
+        "updateNote": "1. 优化个人信息页面\n2. 修复生日选择问题\n3. 提升登录稳定性"
+    }
+# ======================================
