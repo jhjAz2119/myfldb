@@ -7,8 +7,11 @@ from psycopg2.extras import RealDictCursor
 import os
 import uuid
 from datetime import datetime
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
