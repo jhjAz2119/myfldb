@@ -4,7 +4,10 @@ from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
-
+from fastapi import UploadFile, File
+from fastapi.staticfiles import StaticFiles
+import os
+import time
 app = FastAPI()
 
 app.add_middleware(
@@ -58,7 +61,10 @@ def init_db():
     conn.close()
 
 init_db()
-
+# 头像上传目录
+UPLOAD_DIR = "uploads/avatars"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/avatars", StaticFiles(directory=UPLOAD_DIR), name="avatars")
 @app.post("/register")
 def register(req: RegisterReq):
     conn = get_db_connection()
@@ -205,7 +211,38 @@ def delete_account(req: DeleteAccountReq):
     finally:
         cur.close()
         conn.close()
-
+# 上传头像接口
+@app.post("/upload-avatar")
+async def upload_avatar(account: str, file: UploadFile = File(...)):
+    # 生成唯一文件名
+    ext = os.path.splitext(file.filename or "avatar.jpg")[-1]
+    if not ext:
+        ext = ".jpg"
+    save_name = f"{account}_{int(time.time.time())}{ext}"
+    save_path = os.path.join(UPLOAD_DIR, save_name)
+    
+    # 保存文件
+    content = await file.read()
+    with open(save_path, "wb") as f:
+        f.write(content)
+    
+    # ✅ 已填好正确域名
+    avatar_url = f"https://myfldb.onrender.com/avatars/{save_name}"
+    
+    # 更新数据库
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE users SET avatar = %s WHERE account = %s",
+            (avatar_url, account)
+        )
+        conn.commit()
+        cur.close()
+    finally:
+        conn.close()
+    
+    return {"code": 200, "msg": "头像更新成功", "avatarUrl": avatar_url}
 # ========== 新增：版本信息接口 ==========
 @app.get("/version-info", summary="获取版本信息")
 def get_version_info():
