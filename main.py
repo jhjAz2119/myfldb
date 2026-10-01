@@ -221,34 +221,35 @@ def delete_account(req: DeleteAccountReq):
 # 上传头像接口
 @app.post("/upload-avatar")
 async def upload_avatar(
-    account: str = Query(None),  # 方式1：URL 参数
-    account_form: str = Form(None, alias="account"),  # 方式2：表单字段
+    account: str = Query(None),
+    account_form: str = Form(None, alias="account"),
     file: UploadFile = File(...)
 ):
-    # 优先用 form-data，没有就用 query
+    # 优先取表单字段，取不到再用 URL 参数
     final_account = account_form if account_form else account
     
     if not final_account:
         raise HTTPException(status_code=422, detail="account 必填")
     
-    # ========== 下面是你原来的保存文件逻辑，保持不变 ==========
     # 读取文件内容
     file_content = await file.read()
     
-    # 保存路径（根据你实际情况改）
+    # 确保保存目录存在
     import os
     save_dir = "uploads/avatars"
     os.makedirs(save_dir, exist_ok=True)
     
+    # 生成唯一文件名
     import uuid
     ext = os.path.splitext(file.filename or "avatar.jpg")[-1] or ".jpg"
     save_filename = f"{final_account}_{uuid.uuid4().hex[:8]}{ext}"
     save_path = os.path.join(save_dir, save_filename)
     
+    # 写入文件
     with open(save_path, "wb") as f:
         f.write(file_content)
     
-    # 生成访问地址
+    # 头像访问地址
     avatar_url = f"/uploads/avatars/{save_filename}"
     
     # 更新数据库
