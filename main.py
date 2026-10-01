@@ -220,32 +220,52 @@ def delete_account(req: DeleteAccountReq):
 
 # 上传头像接口
 @app.post("/upload-avatar")
-async def upload_avatar(account: str, file: UploadFile = File(...)):
-    ext = os.path.splitext(file.filename or "avatar.jpg")[-1]
-    if not ext:
-        ext = ".jpg"
-    save_name = f"{account}_{int(time.time.time())}{ext}"
-    save_path = os.path.join(UPLOAD_DIR, save_name)
-
-    content = await file.read()
+async def upload_avatar(
+    account: str = Query(None),  # 方式1：URL 参数
+    account_form: str = Form(None, alias="account"),  # 方式2：表单字段
+    file: UploadFile = File(...)
+):
+    # 优先用 form-data，没有就用 query
+    final_account = account_form if account_form else account
+    
+    if not final_account:
+        raise HTTPException(status_code=422, detail="account 必填")
+    
+    # ========== 下面是你原来的保存文件逻辑，保持不变 ==========
+    # 读取文件内容
+    file_content = await file.read()
+    
+    # 保存路径（根据你实际情况改）
+    import os
+    save_dir = "uploads/avatars"
+    os.makedirs(save_dir, exist_ok=True)
+    
+    import uuid
+    ext = os.path.splitext(file.filename or "avatar.jpg")[-1] or ".jpg"
+    save_filename = f"{final_account}_{uuid.uuid4().hex[:8]}{ext}"
+    save_path = os.path.join(save_dir, save_filename)
+    
     with open(save_path, "wb") as f:
-        f.write(content)
-
-    avatar_url = f"https://myfldb.onrender.com/avatars/{save_name}"
-
-    conn = get_db_connection()
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE users SET avatar = %s WHERE account = %s",
-            (avatar_url, account)
-        )
-        conn.commit()
-        cur.close()
-    finally:
-        conn.close()
-
-    return {"code": 200, "msg": "头像更新成功", "avatarUrl": avatar_url}
+        f.write(file_content)
+    
+    # 生成访问地址
+    avatar_url = f"/uploads/avatars/{save_filename}"
+    
+    # 更新数据库
+    conn = pymysql.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE users SET avatar = %s WHERE account = %s",
+        (avatar_url, final_account)
+    )
+    conn.commit()
+    conn.close()
+    
+    return {
+        "code": 200,
+        "msg": "头像上传成功",
+        "avatarUrl": avatar_url
+    }
 
 # 版本信息接口
 @app.get("/version-info", summary="获取版本信息")
