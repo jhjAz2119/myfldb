@@ -5,8 +5,9 @@ import 'user_provider.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/register_page.dart';
-import 'pages/account_info_page.dart';
-import 'pages/security_page.dart';
+import 'pages/home_tabs/profile_pages/about_page.dart';
+import 'pages/home_tabs/profile_pages/account_info_page.dart';
+import 'pages/home_tabs/profile_pages/security_page.dart';
 
 void main() {
   runApp(
@@ -25,15 +26,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter App',
       theme: ThemeData(
-        primarySwatch: Colors.purple,
-        primaryColor: const Color(0xFF7B68EE),
+        primarySwatch: Colors.teal,
+        primaryColor: const Color(0xFF4DB6AC),
         scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
-      // ✅ 日历中文支持
       localizationsDelegates: [
-        // 去掉 const，避免版本兼容问题
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -43,14 +42,14 @@ class MyApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
       locale: const Locale('zh', 'CN'),
-      // ✅ 路由
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/home': (context) => const HomePage(),
-        '/account_info': (context) => const AccountInfoPage(),
-        '/security': (context) => const SecurityPage(),
+        '/profile/account': (context) => const AccountInfoPage(),
+        '/profile/security': (context) => const SecurityPage(),
+        '/profile/about': (context) => const AboutPage(),
       },
     );
   }

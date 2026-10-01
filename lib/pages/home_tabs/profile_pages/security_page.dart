@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../user_provider.dart';
-import '../utils/api_service.dart';
-import '../widgets/common_widgets.dart';
+import '../../../user_provider.dart';
+import '../../../utils/api_service.dart';
+import '../../../widgets/common_widgets.dart';
 
 class SecurityPage extends StatefulWidget {
   const SecurityPage({super.key});

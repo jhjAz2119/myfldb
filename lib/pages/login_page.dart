@@ -65,29 +65,69 @@ class _LoginPageState extends State<LoginPage> {
     if (result['code'] == 200 && mounted) {
       final user = context.read<UserProvider>();
 
-      // ✅ 用 setUserInfo 替代逐个赋值 + notifyListeners
+      // ✅ 第1步：从返回里取出数据，先更新状态管理
+      final accountVal = result['account'] as String?;
+      final nicknameVal = result['nickname'] as String?;
+      final avatarVal = result['avatar'];
+      final genderVal = result['gender'];
+      final birthdayVal = result['birthday'];
+      final userIdVal = result['user_id']?.toString();
+
       user.setUserInfo(
-        account: result['account'] as String?,
-        nickname: result['nickname'] as String?,
-        avatar: result['avatar'],
-        gender: result['gender'],
-        birthday: result['birthday'],
-        userId: result['user_id'],
+        account: accountVal,
+        nickname: nicknameVal,
+        avatar: avatarVal,
+        gender: genderVal,
+        birthday: birthdayVal,
+        userId: userIdVal,
       );
 
-      // ✅ 保存到本地
+      // ✅ 第2步：完整保存到本地 —— 确保全部写入完成
       final prefs = await SharedPreferences.getInstance();
+
+      // 记住账号
       if (_rememberAccount) {
         await prefs.setString('saved_account', _accountCtrl.text.trim());
       } else {
         await prefs.remove('saved_account');
       }
-      await prefs.setString('account', user.account ?? '');
-      await prefs.setString('nickname', user.nickname ?? '');
-      await prefs.setString('gender', user.gender ?? "未设置");
-      if (user.userId != null) await prefs.setString('user_id', user.userId!);
 
-      // ✅ 提示 + 跳转
+      // 保存用户信息 —— 避免空字符串覆盖
+      if (accountVal != null && accountVal.isNotEmpty) {
+        await prefs.setString('account', accountVal);
+        debugPrint('✅ 已保存 account: $accountVal');
+      }
+
+      if (nicknameVal != null && nicknameVal.isNotEmpty) {
+        await prefs.setString('nickname', nicknameVal);
+      } else if (accountVal != null && accountVal.isNotEmpty) {
+        await prefs.setString('nickname', accountVal);
+      }
+
+      if (avatarVal != null && avatarVal.toString().isNotEmpty) {
+        await prefs.setString('avatar', avatarVal.toString());
+        debugPrint('✅ 已保存 avatar: $avatarVal');
+      }
+
+      await prefs.setString(
+          'gender',
+          (genderVal?.toString().isNotEmpty == true)
+              ? genderVal.toString()
+              : '未设置');
+
+      if (userIdVal != null && userIdVal.isNotEmpty) {
+        await prefs.setString('user_id', userIdVal);
+        debugPrint('✅ 已保存 user_id: $userIdVal');
+      }
+
+      if (birthdayVal != null && birthdayVal.toString().isNotEmpty) {
+        await prefs.setString('birthday', birthdayVal.toString());
+      }
+
+      // ✅ 第3步：给一点时间确保写入完成，再跳转
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message'] ?? result['msg'] ?? '登录成功')),
       );
@@ -103,7 +143,6 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     const aspectRatio = kIsWeb ? 9 / 16 : 9 / 20;
     const maxWidth = kIsWeb ? 420.0 : double.infinity;
-
     return PageBackground(
       child: Stack(
         children: [

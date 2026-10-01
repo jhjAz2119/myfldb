@@ -14,7 +14,9 @@ dependencies:
   http: ^1.2.0                # 网络请求
   provider: ^6.1.2            # 状态管理
   intl: any                   # 日期格式化
-
+  url_launcher: ^6.2.2
+  image_picker: ^1.0.4
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

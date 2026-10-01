@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../user_provider.dart';
-import '../theme/theme_config.dart';
-import '../widgets/common_widgets.dart';
-import '../utils/api_service.dart';
+import '../../../user_provider.dart';
+import '../../../theme/theme_config.dart';
+import '../../../widgets/common_widgets.dart';
+import '../../../utils/api_service.dart';
 
 class AccountInfoPage extends StatefulWidget {
   const AccountInfoPage({super.key});

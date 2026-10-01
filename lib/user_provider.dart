@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 
 class UserProvider extends ChangeNotifier {
   String? account;
@@ -50,6 +51,7 @@ class UserProvider extends ChangeNotifier {
   Future<void> saveProfile(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
 
+    // 先更新内存状态
     setUserInfo(
       account: data["account"],
       nickname: data["nickname"],
@@ -59,10 +61,11 @@ class UserProvider extends ChangeNotifier {
       userId: data["user_id"] ?? data["id"],
     );
 
+    // ✅ 确保先更新变量再保存，避免空值
     if (account != null) await prefs.setString("account", account!);
     if (nickname != null) await prefs.setString("nickname", nickname!);
     if (avatar != null) await prefs.setString("avatar", avatar!);
-    await prefs.setString("gender", gender!);
+    if (gender != null) await prefs.setString("gender", gender!);
     if (birthday != null && birthday!.isNotEmpty) {
       await prefs.setString("birthday", birthday!);
     }
@@ -77,12 +80,14 @@ class UserProvider extends ChangeNotifier {
     await prefs.remove('gender');
     await prefs.remove('birthday');
     await prefs.remove('user_id');
+
     account = null;
     nickname = null;
     avatar = null;
     gender = null;
     birthday = null;
     userId = null;
+
     notifyListeners();
   }
 }
