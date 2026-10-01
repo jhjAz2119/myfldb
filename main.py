@@ -1,13 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from datetime import datetime
-from fastapi import UploadFile, File
-from fastapi.staticfiles import StaticFiles
 import os
 import time
+
 app = FastAPI()
 
 app.add_middleware(
@@ -42,7 +41,7 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
-    
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -55,16 +54,23 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
+
+    # 确保 avatar 字段存在
+    cur.execute("""
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;
+    """)
+
     conn.commit()
     cur.close()
     conn.close()
 
 init_db()
+
 # 头像上传目录
 UPLOAD_DIR = "uploads/avatars"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/avatars", StaticFiles(directory=UPLOAD_DIR), name="avatars")
+
 @app.post("/register")
 def register(req: RegisterReq):
     conn = get_db_connection()
@@ -76,7 +82,7 @@ def register(req: RegisterReq):
         )
         if cur.fetchone():
             return {"code": 400, "msg": "账号已存在"}
-        
+
         cur.execute(
             "INSERT INTO users (account, password, nickname) VALUES (%s, %s, %s) RETURNING id",
             (req.account, req.password, req.account)
@@ -103,7 +109,7 @@ def login(req: LoginReq):
         user = cur.fetchone()
         if not user:
             return {"code": 401, "msg": "账号或密码错误"}
-        
+
         return {
             "code": 200,
             "msg": "登录成功",
@@ -140,10 +146,10 @@ def update_profile(req: UpdateProfileReq):
         if req.birthday is not None:
             fields.append("birthday = %s")
             values.append(req.birthday)
-        
+
         if not fields:
             return {"code": 400, "msg": "没有要更新的内容"}
-        
+
         values.append(req.account)
         sql = f"UPDATE users SET {', '.join(fields)} WHERE account = %s"
         cur.execute(sql, values)
@@ -172,7 +178,7 @@ def change_password(req: ChangePwdReq):
         )
         if not cur.fetchone():
             return {"code": 401, "msg": "原密码错误"}
-        
+
         cur.execute(
             "UPDATE users SET password = %s WHERE account = %s",
             (req.new_password, req.account)
@@ -201,7 +207,7 @@ def delete_account(req: DeleteAccountReq):
         )
         if not cur.fetchone():
             return {"code": 401, "msg": "密码错误"}
-        
+
         cur.execute("DELETE FROM users WHERE account = %s", (req.account,))
         conn.commit()
         return {"code": 200, "msg": "账号已注销"}
@@ -211,25 +217,22 @@ def delete_account(req: DeleteAccountReq):
     finally:
         cur.close()
         conn.close()
+
 # 上传头像接口
 @app.post("/upload-avatar")
 async def upload_avatar(account: str, file: UploadFile = File(...)):
-    # 生成唯一文件名
     ext = os.path.splitext(file.filename or "avatar.jpg")[-1]
     if not ext:
         ext = ".jpg"
     save_name = f"{account}_{int(time.time.time())}{ext}"
     save_path = os.path.join(UPLOAD_DIR, save_name)
-    
-    # 保存文件
+
     content = await file.read()
     with open(save_path, "wb") as f:
         f.write(content)
-    
-    # ✅ 已填好正确域名
+
     avatar_url = f"https://myfldb.onrender.com/avatars/{save_name}"
-    
-    # 更新数据库
+
     conn = get_db_connection()
     try:
         cur = conn.cursor()
@@ -241,19 +244,15 @@ async def upload_avatar(account: str, file: UploadFile = File(...)):
         cur.close()
     finally:
         conn.close()
-    
+
     return {"code": 200, "msg": "头像更新成功", "avatarUrl": avatar_url}
-# ========== 新增：版本信息接口 ==========
+
+# 版本信息接口
 @app.get("/version-info", summary="获取版本信息")
 def get_version_info():
-    """
-    返回应用版本信息
-    有新版本时直接修改下面的值即可
-    """
     return {
         "currentVersion": "1.0.0",
         "latestVersion": "1.0.0",
         "downloadUrl": "",
         "updateNote": "1. 优化个人信息页面\n2. 修复生日选择问题\n3. 提升登录稳定性"
     }
-# ======================================
