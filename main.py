@@ -11,8 +11,8 @@ from datetime import datetime
 app = FastAPI()
 
 # ========== ✅ 关键修复：Flutter 网页挂载放最前面 ==========
-if os.path.exists("build/web"):
-    app.mount("/", StaticFiles(directory="build/web", html=True), name="static")
+if os.path.exists("web"):
+    app.mount("/", StaticFiles(directory="web", html=True), name="static")
 
 # ========== 上传文件挂载 ==========
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
