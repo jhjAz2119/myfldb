@@ -8,7 +8,7 @@ import 'pages/register_page.dart';
 import 'pages/home_tabs/profile_pages/about_page.dart';
 import 'pages/home_tabs/profile_pages/account_info_page.dart';
 import 'pages/home_tabs/profile_pages/security_page.dart';
-import 'pages/my_admin/dashboard/admin_dashboard.dart';
+import 'pages/my_admin/admin_main.dart';
 
 void main() {
   runApp(
@@ -51,7 +51,7 @@ class MyApp extends StatelessWidget {
         '/profile/account': (context) => const AccountInfoPage(),
         '/profile/security': (context) => const SecurityPage(),
         '/profile/about': (context) => const AboutPage(),
-        '/my_admin': (context) => const AdminDashboard(), // 后台专属地址
+        '/my_admin': (context) => const AdminMainPage(), // 后台专属地址
       },
     );
   }
