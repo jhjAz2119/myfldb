@@ -334,3 +334,25 @@ def admin_get_statistics():
     finally:
         cur.close()
         conn.close()
+
+# ========== 管理后台：操作用户状态 ==========
+@app.post("/admin/user/set-status")
+def admin_set_user_status(account: str = Form(...), status: str = Form(...)):
+    """禁用/启用用户：status = '正常' 或 '禁用'"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "UPDATE users SET status = %s WHERE account = %s",
+            (status, account)
+        )
+        if cur.rowcount == 0:
+            return {"code": 404, "msg": "用户不存在"}
+        conn.commit()
+        return {"code": 200, "success": True, "msg": f"已设为：{status}"}
+    except Exception as e:
+        conn.rollback()
+        return {"code": 500, "msg": f"操作失败: {str(e)}"}
+    finally:
+        cur.close()
+        conn.close()
