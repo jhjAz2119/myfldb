@@ -7,12 +7,9 @@ from psycopg2.extras import RealDictCursor
 import os
 import uuid
 from datetime import datetime
-from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
-
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -59,6 +56,12 @@ def init_db():
     """)
     cur.execute("""
         ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;
+    """)
+    cur.execute("""
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT '正常';
+    """)
+    cur.execute("""
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_status VARCHAR(20) DEFAULT '未提交';
     """)
     conn.commit()
     cur.close()
@@ -264,3 +267,70 @@ def get_version_info():
         "downloadUrl": "",
         "updateNote": "1. 修复上传头像\n2. 统一PostgreSQL数据库\n3. 优化静态文件访问"
     }
+
+@app.get("/admin/users")
+def admin_get_all_users():
+    """获取全部用户列表（管理后台用）"""
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            SELECT 
+                id,
+                account,
+                nickname,
+                created_at AS register_time,
+                status,
+                verify_status
+            FROM users
+            ORDER BY id DESC
+        """)
+        users = cur.fetchall()
+        
+        return {
+            "code": 200,
+            "success": True,
+            "data": [dict(u) for u in users]
+        }
+    except Exception as e:
+        return {"code": 500, "success": False, "message": f"查询失败: {str(e)}"}
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/admin/statistics")
+def admin_get_statistics():
+    """首页统计数据"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT COUNT(*) FROM users")
+        total = cur.fetchone()[0]
+        
+        cur.execute("""
+            SELECT COUNT(*) FROM users 
+            WHERE DATE(created_at) = CURRENT_DATE
+        """)
+        today_new = cur.fetchone()[0]
+        
+        cur.execute("""
+            SELECT COUNT(*) FROM users 
+            WHERE verify_status = '待审核'
+        """)
+        pending_verify = cur.fetchone()[0]
+        
+        return {
+            "code": 200,
+            "success": True,
+            "data": {
+                "total_users": total,
+                "today_new": today_new,
+                "pending_verify": pending_verify,
+                "system_status": "运行中"
+            }
+        }
+    except Exception as e:
+        return {"code": 500, "message": f"统计失败: {str(e)}"}
+    finally:
+        cur.close()
+        conn.close()
