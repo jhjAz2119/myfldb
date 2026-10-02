@@ -54,24 +54,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          AdminSidebar(selectedIndex: 0),
-          Expanded(
-            child: Column(
-              children: [
-                AdminAppBar(title: '数据统计'),
-                Expanded(
-                  child: Container(
-                    color: AdminTheme.bgPrimary,
-                    padding: const EdgeInsets.all(24),
-                    child: _buildContent(),
-                  ),
-                ),
-              ],
+      body: AdminTheme.buildFullScreen(
+        child: Row(
+          children: [
+            // 左侧固定侧边栏
+            AdminTheme.buildSidebar(
+              child: const AdminSidebar(selectedIndex: 0),
             ),
-          ),
-        ],
+
+            // 右侧内容区
+            AdminTheme.buildContentArea(
+              child: AdminTheme.buildContentWithBar(
+                appBar: const AdminAppBar(title: '数据统计'),
+                body: Container(
+                  padding: AdminTheme.contentPadding,
+                  child: _buildContent(), // 你原来的内容直接保留
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

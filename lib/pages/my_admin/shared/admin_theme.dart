@@ -78,6 +78,50 @@ class AdminTheme {
     ),
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
   );
+  // ===== 管理后台布局统一规范 =====
+  static const double sidebarWidth = 240; // 侧边栏固定宽度
+  static const EdgeInsets contentPadding = EdgeInsets.all(24); // 内容内边距
+
+  // 统一外层全屏容器 —— 消除抖动
+  static Widget buildFullScreen({required Widget child}) {
+    return SizedBox(
+      width: double.infinity,
+      height: double.infinity,
+      child: child,
+    );
+  }
+
+  // 统一侧边栏容器
+  static Widget buildSidebar({required Widget child}) {
+    return SizedBox(
+      width: sidebarWidth,
+      child: child,
+    );
+  }
+
+  // 统一右侧内容容器
+  static Widget buildContentArea({required Widget child}) {
+    return Expanded(
+      child: Container(
+        color: AdminTheme.bgPrimary,
+        width: double.infinity,
+        child: child,
+      ),
+    );
+  }
+
+  // 统一内容卡片区（带AppBar）
+  static Widget buildContentWithBar({
+    required PreferredSizeWidget appBar,
+    required Widget body,
+  }) {
+    return Column(
+      children: [
+        appBar,
+        Expanded(child: body),
+      ],
+    );
+  }
 }
 
 // 方便使用的扩展类
