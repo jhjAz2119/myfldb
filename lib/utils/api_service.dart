@@ -25,6 +25,11 @@ class ApiService {
     }
   }
 
+  // ✅ 新增：公开方法，外部文件调用这个
+  static Map<String, dynamic> parseResponse(http.Response res) {
+    return _parseRes(res);
+  }
+
   // 注册
   static Future<Map<String, dynamic>> register(
     String account,
