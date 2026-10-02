@@ -9,7 +9,15 @@ import uuid
 from datetime import datetime
 
 app = FastAPI()
+
+# ========== ✅ 关键修复：Flutter 网页挂载放最前面 ==========
+if os.path.exists("build/web"):
+    app.mount("/", StaticFiles(directory="build/web", html=True), name="static")
+
+# ========== 上传文件挂载 ==========
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# ❌ 删除重复：app.mount("/uploads/avatars", ...) 保留上面一行即可
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -54,15 +62,9 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    cur.execute("""
-        ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;
-    """)
-    cur.execute("""
-        ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT '正常';
-    """)
-    cur.execute("""
-        ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_status VARCHAR(20) DEFAULT '未提交';
-    """)
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;")
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT '正常';")
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS verify_status VARCHAR(20) DEFAULT '未提交';")
     conn.commit()
     cur.close()
     conn.close()
@@ -71,7 +73,6 @@ init_db()
 
 UPLOAD_DIR = "uploads/avatars"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads/avatars", StaticFiles(directory=UPLOAD_DIR), name="avatar_files")
 
 class UpdateProfileReq(BaseModel):
     account: str
@@ -84,10 +85,7 @@ def register(req: RegisterReq):
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        cur.execute(
-            "SELECT id FROM users WHERE account = %s",
-            (req.account,)
-        )
+        cur.execute("SELECT id FROM users WHERE account = %s", (req.account,))
         if cur.fetchone():
             return {"code": 400, "msg": "账号已存在"}
         cur.execute(
@@ -221,23 +219,17 @@ async def upload_avatar(
     file: UploadFile = File(...)
 ):
     final_account = account_form if account_form else account
-    
     if not final_account:
         raise HTTPException(status_code=422, detail="account 必填")
-    
     file_content = await file.read()
-    
     ext = os.path.splitext(file.filename or "avatar.jpg")[-1]
     if not ext:
         ext = ".jpg"
     save_filename = f"{final_account}_{uuid.uuid4().hex[:8]}{ext}"
     save_path = os.path.join(UPLOAD_DIR, save_filename)
-    
     with open(save_path, "wb") as f:
         f.write(file_content)
-    
     avatar_url = f"/uploads/avatars/{save_filename}"
-    
     conn = get_db_connection()
     cur = conn.cursor()
     try:
@@ -252,12 +244,7 @@ async def upload_avatar(
     finally:
         cur.close()
         conn.close()
-    
-    return {
-        "code": 200,
-        "msg": "头像上传成功",
-        "avatarUrl": avatar_url
-    }
+    return {"code": 200, "msg": "头像上传成功", "avatarUrl": avatar_url}
 
 @app.get("/version-info")
 def get_version_info():
@@ -270,28 +257,15 @@ def get_version_info():
 
 @app.get("/admin/users")
 def admin_get_all_users():
-    """获取全部用户列表（管理后台用）"""
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT 
-                id,
-                account,
-                nickname,
-                created_at AS register_time,
-                status,
-                verify_status
-            FROM users
-            ORDER BY id DESC
+            SELECT id, account, nickname, created_at AS register_time, status, verify_status
+            FROM users ORDER BY id DESC
         """)
         users = cur.fetchall()
-        
-        return {
-            "code": 200,
-            "success": True,
-            "data": [dict(u) for u in users]
-        }
+        return {"code": 200, "success": True, "data": [dict(u) for u in users]}
     except Exception as e:
         return {"code": 500, "success": False, "message": f"查询失败: {str(e)}"}
     finally:
@@ -300,25 +274,15 @@ def admin_get_all_users():
 
 @app.get("/admin/statistics")
 def admin_get_statistics():
-    """首页统计数据"""
     conn = get_db_connection()
     cur = conn.cursor()
     try:
         cur.execute("SELECT COUNT(*) FROM users")
         total = cur.fetchone()[0]
-        
-        cur.execute("""
-            SELECT COUNT(*) FROM users 
-            WHERE DATE(created_at) = CURRENT_DATE
-        """)
+        cur.execute("SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURRENT_DATE")
         today_new = cur.fetchone()[0]
-        
-        cur.execute("""
-            SELECT COUNT(*) FROM users 
-            WHERE verify_status = '待审核'
-        """)
+        cur.execute("SELECT COUNT(*) FROM users WHERE verify_status = '待审核'")
         pending_verify = cur.fetchone()[0]
-        
         return {
             "code": 200,
             "success": True,
@@ -335,17 +299,12 @@ def admin_get_statistics():
         cur.close()
         conn.close()
 
-# ========== 管理后台：操作用户状态 ==========
 @app.post("/admin/user/set-status")
 def admin_set_user_status(account: str = Form(...), status: str = Form(...)):
-    """禁用/启用用户：status = '正常' 或 '禁用'"""
     conn = get_db_connection()
     cur = conn.cursor()
     try:
-        cur.execute(
-            "UPDATE users SET status = %s WHERE account = %s",
-            (status, account)
-        )
+        cur.execute("UPDATE users SET status = %s WHERE account = %s", (status, account))
         if cur.rowcount == 0:
             return {"code": 404, "msg": "用户不存在"}
         conn.commit()
