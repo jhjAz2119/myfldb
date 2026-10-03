@@ -29,3 +29,8 @@ if os.path.exists("web"):
     app.mount("/", StaticFiles(directory="web", html=True), name="static")
 if os.path.exists("uploads"):
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
