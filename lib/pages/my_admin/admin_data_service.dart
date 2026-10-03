@@ -1,4 +1,4 @@
-//✅ 数据处理文件放在这里
+//✅ 数据处理文件
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -18,23 +18,24 @@ class AdminDataService {
           'code': data['code'] ?? -1,
           'success': data['code'] == 200,
           'message': data['detail'] ?? data['msg'] ?? '',
+          'data': data['data'] ?? {},
           ...data,
         };
       }
-      return {'code': -1, 'success': false, 'message': '数据格式错误'};
+      return {'code': -1, 'success': false, 'message': '数据格式错误', 'data': {}};
     } catch (e) {
-      return {'code': -1, 'success': false, 'message': '解析失败：$e'};
+      return {'code': -1, 'success': false, 'message': '解析失败：$e', 'data': {}};
     }
   }
 
-  // ===== 数据统计 =====
+  // ===== 数据统计 ✅ 路径已修正为 /admin/stats =====
   static Future<Map<String, dynamic>> getStatistics() async {
     try {
-      final uri = Uri.parse('${_baseUrl}admin/statistics');
+      final uri = Uri.parse('${_baseUrl}admin/stats');
       final res = await http.get(uri).timeout(const Duration(seconds: 15));
       return _parseRes(res);
     } catch (e) {
-      return {'code': -1, 'success': false, 'message': '网络错误：$e'};
+      return {'code': -1, 'success': false, 'message': '网络错误：$e', 'data': {}};
     }
   }
 
@@ -46,7 +47,7 @@ class AdminDataService {
       final res = await http.get(uri).timeout(const Duration(seconds: 15));
       return _parseRes(res);
     } catch (e) {
-      return {'code': -1, 'success': false, 'message': '网络错误：$e'};
+      return {'code': -1, 'success': false, 'message': '网络错误：$e', 'data': {}};
     }
   }
 
@@ -57,7 +58,7 @@ class AdminDataService {
       final res = await http.post(uri).timeout(const Duration(seconds: 15));
       return _parseRes(res);
     } catch (e) {
-      return {'code': -1, 'success': false, 'message': '网络错误：$e'};
+      return {'code': -1, 'success': false, 'message': '网络错误：$e', 'data': {}};
     }
   }
 
@@ -75,7 +76,7 @@ class AdminDataService {
           .timeout(const Duration(seconds: 15));
       return _parseRes(res);
     } catch (e) {
-      return {'code': -1, 'success': false, 'message': '网络错误：$e'};
+      return {'code': -1, 'success': false, 'message': '网络错误：$e', 'data': {}};
     }
   }
 
@@ -93,7 +94,7 @@ class AdminDataService {
           .timeout(const Duration(seconds: 15));
       return _parseRes(res);
     } catch (e) {
-      return {'code': -1, 'success': false, 'message': '网络错误：$e'};
+      return {'code': -1, 'success': false, 'message': '网络错误：$e', 'data': {}};
     }
   }
 }

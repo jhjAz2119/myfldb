@@ -1,4 +1,3 @@
-//主框架入口
 import 'package:flutter/material.dart';
 import 'admin_theme.dart';
 import 'admin_sidebar.dart';
@@ -14,15 +13,14 @@ import 'subpages/operation_log_subpage.dart';
 
 class AdminMainPage extends StatefulWidget {
   const AdminMainPage({super.key});
-
   @override
   State<AdminMainPage> createState() => _AdminMainPageState();
 }
 
 class _AdminMainPageState extends State<AdminMainPage> {
-  int _selectedIndex = 0; // ✅ 只变这个数字，外壳永远不重建
+  int _selectedIndex = 0;
 
-  // ✅ 子页面列表 — 顺序和侧边栏菜单一一对应
+  // ========== 下面这一段完全不动 ==========
   static const List<Widget> _subpages = [
     DashboardSubpage(),
     UserListSubpage(),
@@ -33,8 +31,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
     SystemConfigSubpage(),
     OperationLogSubpage(),
   ];
-
-  // ✅ 顶部标题 — 顺序同上
   static const List<String> _pageTitles = [
     '数据统计',
     '用户列表',
@@ -45,29 +41,40 @@ class _AdminMainPageState extends State<AdminMainPage> {
     '系统管理',
     '日志管理',
   ];
+  // ======================================
+
+  // ✅ 只新增：页面加载时检查权限
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      // 没有授权标记 → 直接踢回登录页
+      if (args != 'admin_authorized') {
+        Navigator.pushReplacementNamed(context, '/admin-login');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    // ========== 下面的 build 代码完全不动，和你原来一样 ==========
     return Scaffold(
-      // ✅ 最外层固定不动，防止抖动
       body: AdminTheme.buildFullScreen(
         child: Row(
           children: [
-            // ✅ 左侧：固定侧边栏（只建一次，不销毁）
             AdminTheme.buildSidebarContainer(
               child: AdminSidebar(
                 selectedIndex: _selectedIndex,
                 onItemTapped: (index) {
-                  setState(() => _selectedIndex = index); // ✅ 只改数字，不跳转页面
+                  setState(() => _selectedIndex = index);
                 },
               ),
             ),
-
-            // ✅ 右侧：只换子页面内容，外壳不动
             AdminTheme.buildContentArea(
               child: AdminTheme.buildContentWithBar(
                 appBar: AdminAppBar(title: _pageTitles[_selectedIndex]),
-                body: _subpages[_selectedIndex], // ✅ 切换子页面
+                body: _subpages[_selectedIndex],
               ),
             ),
           ],

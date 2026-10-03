@@ -9,6 +9,7 @@ import 'pages/home_tabs/profile_pages/about_page.dart';
 import 'pages/home_tabs/profile_pages/account_info_page.dart';
 import 'pages/home_tabs/profile_pages/security_page.dart';
 import 'pages/my_admin/admin_main.dart';
+import 'pages/my_admin/admin_login_page.dart';
 
 void main() {
   runApp(
@@ -52,6 +53,7 @@ class MyApp extends StatelessWidget {
         '/profile/security': (context) => const SecurityPage(),
         '/profile/about': (context) => const AboutPage(),
         '/my_admin': (context) => const AdminMainPage(), // 后台专属地址
+        '/admin-login': (context) => const AdminLoginPage(),
       },
     );
   }
