@@ -1,45 +1,40 @@
-from fastapi import APIRouter, Query, Form, UploadFile, File
-from typing import Optional
+# routers/user_router.py
+from fastapi import APIRouter, HTTPException, Query, Form, UploadFile, File
 import os
 import uuid
-from models import RegisterReq, LoginReq, UpdateProfileReq, ChangePwdReq, DeleteAccountReq
-from services.user_service import (
-    register_user,
-    login_user,
-    update_profile,
-    change_password,
-    delete_account
-)
-from config import UPLOAD_DIR
+from models import LoginReq, RegisterReq, UpdateProfileReq, ChangePwdReq, DeleteAccountReq
+from user_service import UserService
+from config import UPLOAD_DIR, VERSION, DOWNLOAD_URL
+from database import get_db_conn
 
-router = APIRouter(tags=["用户接口"])
+router = APIRouter(prefix="", tags=["用户接口"])
 
-# ========== 注册 ==========
-@router.post("/register")
-def register(req: RegisterReq):
-    return register_user(req)
-
-# ========== 登录 ==========
 @router.post("/login")
 def login(req: LoginReq):
-    return login_user(req)
+    res = UserService.login(req.account, req.password)
+    if res["code"] == 200:
+        return {"code": 200, "msg": res["msg"], **res["data"]}
+    return res
 
-# ========== 更新资料 ==========
+@router.post("/register")
+def register(req: RegisterReq):
+    return UserService.register(req.account, req.password)
+
 @router.post("/update_profile")
-def update(req: UpdateProfileReq):
-    return update_profile(req)
+def update_profile(req: UpdateProfileReq):
+    res = UserService.update_profile(req.account, req.nickname, req.gender, req.birthday)
+    if res["code"] == 200 and "data" in res:
+        return {"code": 200, "msg": res["msg"], **res["data"]}
+    return res
 
-# ========== 修改密码 ==========
 @router.post("/change_password")
-def change_pwd(req: ChangePwdReq):
-    return change_password(req)
+def change_password(req: ChangePwdReq):
+    return UserService.change_password(req.account, req.old_password, req.new_password)
 
-# ========== 注销账号 ==========
 @router.post("/delete_account")
-def delete(req: DeleteAccountReq):
-    return delete_account(req)
+def delete_account(req: DeleteAccountReq):
+    return UserService.delete_account(req.account, req.password)
 
-# ========== 上传头像 ==========
 @router.post("/upload-avatar")
 async def upload_avatar(
     account: str = Query(None),
@@ -48,49 +43,35 @@ async def upload_avatar(
 ):
     final_account = account_form if account_form else account
     if not final_account:
-        from fastapi import HTTPException
         raise HTTPException(status_code=422, detail="account 必填")
-    
-    file_content = await file.read()
-    ext = os.path.splitext(file.filename or "avatar.jpg")[-1]
-    if not ext:
-        ext = ".jpg"
-    
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    save_filename = f"{final_account}_{uuid.uuid4().hex[:8]}{ext}"
-    save_path = os.path.join(UPLOAD_DIR, save_filename)
-    
-    with open(save_path, "wb") as f:
-        f.write(file_content)
-    
-    avatar_url = f"/uploads/avatars/{save_filename}"
-    
-    # 更新数据库
-    from database import get_db_connection
-    conn = get_db_connection()
-    cur = conn.cursor()
     try:
+        content = await file.read()
+        ext = os.path.splitext(file.filename or "avatar.jpg")[-1]
+        if not ext:
+            ext = ".jpg"
+        filename = f"{final_account}_{uuid.uuid4().hex[:8]}{ext}"
+        path = os.path.join(UPLOAD_DIR, filename)
+        with open(path, "wb") as f:
+            f.write(content)
+        avatar_url = f"/uploads/avatars/{filename}"
+        conn = get_db_conn()
+        cur = conn.cursor()
         cur.execute(
             "UPDATE users SET avatar = %s WHERE account = %s",
             (avatar_url, final_account)
         )
         conn.commit()
-    except Exception as e:
-        conn.rollback()
-        from fastapi import HTTPException
-        raise HTTPException(status_code=500, detail=f"数据库更新失败: {str(e)}")
-    finally:
         cur.close()
         conn.close()
-    
-    return {"code": 200, "msg": "头像上传成功", "avatarUrl": avatar_url}
+        return {"code": 200, "msg": "头像上传成功", "avatarUrl": avatar_url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"上传失败: {str(e)}")
 
-# ========== 版本信息 ==========
 @router.get("/version-info")
-def get_version():
+def version_info():
     return {
-        "currentVersion": "1.0.0",
-        "latestVersion": "1.0.0",
-        "downloadUrl": "",
-        "updateNote": "1. 后端模块化重构\n2. 新增余额字段\n3. 管理后台统计接口"
+        "currentVersion": VERSION,
+        "latestVersion": VERSION,
+        "downloadUrl": DOWNLOAD_URL,
+        "updateNote": "完整模块化 + 管理接口 + 新增3字段",
     }

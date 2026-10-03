@@ -1,29 +1,23 @@
-from fastapi import APIRouter, Form
-from services.admin_service import (
-    get_statistics,
-    get_all_users,
-    set_user_status
-)
+# routers/admin_router.py
+from fastapi import APIRouter
+from services.admin_service import AdminService
 
-router = APIRouter(prefix="/admin", tags=["管理后台"])
+router = APIRouter(prefix="/admin", tags=["管理接口"])
 
-# ========== 数据统计 ==========
-@router.get("/statistics")
-def admin_statistics():
-    """管理后台首页统计数据"""
-    return get_statistics()
+@router.get("/stats")
+def get_system_stats():
+    """获取系统统计数据"""
+    return {
+        "code": 200,
+        "msg": "获取成功",
+        "data": AdminService.get_system_stats()
+    }
 
-# ========== 用户列表 ==========
 @router.get("/users")
-def admin_users():
-    """获取全部用户列表"""
-    return get_all_users()
-
-# ========== 设置用户状态 ==========
-@router.post("/user/set-status")
-def admin_set_status(
-    account: str = Form(...),
-    status: str = Form(...)
-):
-    """冻结/解冻用户账号"""
-    return set_user_status(account, status)
+def get_user_list(limit: int = 100):
+    """获取用户列表"""
+    return {
+        "code": 200,
+        "msg": "获取成功",
+        "data": AdminService.get_all_users(limit)
+    }
