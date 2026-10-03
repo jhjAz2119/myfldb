@@ -8,6 +8,43 @@ from datetime import datetime
 import os
 import uuid
 
+# ✅ 修复1：加上 sslmode
+DB_CONFIG = {
+    "host": "dpg-daudfcegekts73e1alfg-a.singapore-postgres.render.com",
+    "port": 5432,
+    "user": "myfldb_user",
+    "password": "OOTWPUjbdhe75miJFMEedks9MPby8z",
+    "database": "myfldb",
+    "sslmode": "require"
+}
+
+UPLOAD_DIR = "uploads/avatars"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# ✅ 修复2：自动建表+补字段
+def init_database():
+    conn = psycopg2.connect(**DB_CONFIG)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            account VARCHAR(50) UNIQUE NOT NULL,
+            password VARCHAR(255) NOT NULL
+        )
+    """)
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname VARCHAR(50)")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(20) DEFAULT '未设置'")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday DATE")
+    except Exception:
+        pass
+    conn.commit()
+    cur.close()
+    conn.close()
+
+init_database()
+
 app = FastAPI(title="用户管理系统", version="1.0.0")
 
 app.add_middleware(
@@ -18,16 +55,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_CONFIG = {
-    "host": "dpg-daudfcegekts73e1alfg-a.singapore-postgres.render.com",
-    "port": 5432,
-    "user": "myfldb_user",
-    "password": "OOTWPUjbdhe75miJFMEedks9MPby8z",
-    "database": "myfldb",
-}
-
-UPLOAD_DIR = "uploads/avatars"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+def get_db_conn():
+    return psycopg2.connect(**DB_CONFIG)
 
 # ========== 数据模型 ==========
 class LoginReq(BaseModel):
@@ -53,34 +82,33 @@ class DeleteAccountReq(BaseModel):
     account: str
     password: str
 
-# ========== 工具函数 ==========
-def get_db_conn():
-    return psycopg2.connect(**DB_CONFIG)
-
 # ========== 登录 ==========
 @app.post("/login")
 def login(req: LoginReq):
-    conn = get_db_conn()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute(
-        "SELECT * FROM users WHERE account = %s AND password = %s",
-        (req.account, req.password)
-    )
-    user = cur.fetchone()
-    cur.close()
-    conn.close()
-    if user:
-        return {
-            "code": 200,
-            "msg": "登录成功",
-            "account": user["account"],
-            "nickname": user.get("nickname", user["account"]),
-            "avatar": user.get("avatar", ""),
-            "gender": user.get("gender", "未设置"),
-            "birthday": user.get("birthday", ""),
-            "user_id": user.get("id"),
-        }
-    return {"code": 400, "msg": "账号或密码错误"}
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(
+            "SELECT * FROM users WHERE account = %s AND password = %s",
+            (req.account, req.password)
+        )
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
+        if user:
+            return {
+                "code": 200,
+                "msg": "登录成功",
+                "account": user["account"],
+                "nickname": user.get("nickname", user["account"]),
+                "avatar": user.get("avatar", ""),
+                "gender": user.get("gender", "未设置"),
+                "birthday": user.get("birthday", ""),
+                "user_id": user.get("id"),
+            }
+        return {"code": 400, "msg": "账号或密码错误"}
+    except Exception as e:
+        return {"code": 500, "msg": f"数据库错误: {str(e)}"}
 
 # ========== 注册 ==========
 @app.post("/register")
@@ -142,7 +170,7 @@ def update_profile(req: UpdateProfileReq):
                 "nickname": row["nickname"] or row["account"],
                 "avatar": row.get("avatar", ""),
                 "gender": row.get("gender", "未设置"),
-                "birthday": row.get("birthday", ""),
+                "birthday": row["birthday"],
                 "user_id": row["id"],
             }
         return {"code": 404, "msg": "用户不存在"}
@@ -152,43 +180,49 @@ def update_profile(req: UpdateProfileReq):
 # ========== 修改密码 ==========
 @app.post("/change_password")
 def change_password(req: ChangePwdReq):
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id FROM users WHERE account = %s AND password = %s",
-        (req.account, req.old_password)
-    )
-    if not cur.fetchone():
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id FROM users WHERE account = %s AND password = %s",
+            (req.account, req.old_password)
+        )
+        if not cur.fetchone():
+            cur.close()
+            conn.close()
+            return {"code": 400, "msg": "原密码错误"}
+        cur.execute(
+            "UPDATE users SET password = %s WHERE account = %s",
+            (req.new_password, req.account)
+        )
+        conn.commit()
         cur.close()
         conn.close()
-        return {"code": 400, "msg": "原密码错误"}
-    cur.execute(
-        "UPDATE users SET password = %s WHERE account = %s",
-        (req.new_password, req.account)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-    return {"code": 200, "msg": "密码修改成功"}
+        return {"code": 200, "msg": "密码修改成功"}
+    except Exception as e:
+        return {"code": 500, "msg": f"修改失败: {str(e)}"}
 
 # ========== 注销账号 ==========
 @app.post("/delete_account")
 def delete_account(req: DeleteAccountReq):
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id FROM users WHERE account = %s AND password = %s",
-        (req.account, req.password)
-    )
-    if not cur.fetchone():
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id FROM users WHERE account = %s AND password = %s",
+            (req.account, req.password)
+        )
+        if not cur.fetchone():
+            cur.close()
+            conn.close()
+            return {"code": 400, "msg": "密码验证失败"}
+        cur.execute("DELETE FROM users WHERE account = %s", (req.account,))
+        conn.commit()
         cur.close()
         conn.close()
-        return {"code": 400, "msg": "密码验证失败"}
-    cur.execute("DELETE FROM users WHERE account = %s", (req.account,))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return {"code": 200, "msg": "账号已注销"}
+        return {"code": 200, "msg": "账号已注销"}
+    except Exception as e:
+        return {"code": 500, "msg": f"注销失败: {str(e)}"}
 
 # ========== 上传头像 ==========
 @app.post("/upload-avatar")
@@ -200,36 +234,28 @@ async def upload_avatar(
     final_account = account_form if account_form else account
     if not final_account:
         raise HTTPException(status_code=422, detail="account 必填")
-    
-    file_content = await file.read()
-    ext = os.path.splitext(file.filename or "avatar.jpg")[-1]
-    if not ext:
-        ext = ".jpg"
-    
-    save_filename = f"{final_account}_{uuid.uuid4().hex[:8]}{ext}"
-    save_path = os.path.join(UPLOAD_DIR, save_filename)
-    
-    with open(save_path, "wb") as f:
-        f.write(file_content)
-    
-    avatar_url = f"/uploads/avatars/{save_filename}"
-    
-    conn = get_db_conn()
-    cur = conn.cursor()
     try:
+        file_content = await file.read()
+        ext = os.path.splitext(file.filename or "avatar.jpg")[-1]
+        if not ext:
+            ext = ".jpg"
+        save_filename = f"{final_account}_{uuid.uuid4().hex[:8]}{ext}"
+        save_path = os.path.join(UPLOAD_DIR, save_filename)
+        with open(save_path, "wb") as f:
+            f.write(file_content)
+        avatar_url = f"/uploads/avatars/{save_filename}"
+        conn = get_db_conn()
+        cur = conn.cursor()
         cur.execute(
             "UPDATE users SET avatar = %s WHERE account = %s",
             (avatar_url, final_account)
         )
         conn.commit()
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"数据库更新失败: {str(e)}")
-    finally:
         cur.close()
         conn.close()
-    
-    return {"code": 200, "msg": "头像上传成功", "avatarUrl": avatar_url}
+        return {"code": 200, "msg": "头像上传成功", "avatarUrl": avatar_url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"上传失败: {str(e)}")
 
 # ========== 版本信息 ==========
 @app.get("/version-info")
@@ -238,12 +264,11 @@ def get_version():
         "currentVersion": "1.0.0",
         "latestVersion": "1.0.0",
         "downloadUrl": "https://github.com/jhjAz2119/myfldb/releases/download/v1.0.0/app-release.apk",
-        "updateNote": "1. 基础功能完善\n2. 头像上传支持",
+        "updateNote": "1. 修复SSL连接\n2. 自动建表补字段",
     }
 
 # ========== 静态文件 —— 必须放最后！ ==========
 if os.path.exists("web"):
     app.mount("/", StaticFiles(directory="web", html=True), name="static")
-
 if os.path.exists("uploads"):
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
