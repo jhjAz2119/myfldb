@@ -22,6 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
+# 注册接口路由
+app.include_router(user_router)
+app.include_router(admin_router)
 # 静态文件：Flutter 网页前端
 if os.path.exists("web"):
     app.mount("/", StaticFiles(directory="web", html=True), name="static")
@@ -29,7 +34,3 @@ if os.path.exists("web"):
 # 静态文件：头像等上传资源
 if os.path.exists("uploads"):
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
-# 注册接口路由
-app.include_router(user_router)
-app.include_router(admin_router)
