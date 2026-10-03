@@ -67,3 +67,50 @@ class AdminService:
             "unverified_users": total_users - verified_count,
             "total_balance": round(total_balance, 2),
         }
+    @staticmethod
+    def delete_user_by_id(user_id: int) -> bool:
+        """根据ID删除用户，返回是否成功"""
+        conn = None
+        try:
+            conn = get_db_conn()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def update_user_frozen_status(user_id: int, frozen: bool) -> bool:
+        """更新用户冻结状态"""
+        conn = None
+        try:
+            conn = get_db_conn()
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE users SET frozen = %s WHERE id = %s",
+                (frozen, user_id)
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def verify_user_by_id(user_id: int, passed: bool, remark: str | None = None) -> bool:
+        """审核用户 —— 更新认证状态"""
+        conn = None
+        try:
+            conn = get_db_conn()
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE users SET id_verified = %s WHERE id = %s",
+                (passed, user_id)
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            if conn:
+                conn.close()

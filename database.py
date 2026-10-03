@@ -1,4 +1,3 @@
-# database.py
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from config import DB_CONFIG, UPLOAD_DIR
@@ -27,6 +26,7 @@ def init_database():
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS id_verified BOOLEAN DEFAULT FALSE")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS balance NUMERIC(10,2) DEFAULT 0.00")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS frozen BOOLEAN DEFAULT FALSE")
     except Exception:
         pass
     conn.commit()

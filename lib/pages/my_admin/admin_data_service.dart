@@ -82,14 +82,20 @@ class AdminDataService {
 
   // ===== 审核用户 =====
   static Future<Map<String, dynamic>> verifyUser(
-      dynamic userId, bool pass, String? remark) async {
+    dynamic userId,
+    bool isPass, // ✅ 改名
+    String? remark,
+  ) async {
     try {
       final uri = Uri.parse('${_baseUrl}admin/users/$userId/verify');
       final res = await http
           .post(
             uri,
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'pass': pass, 'remark': remark}),
+            body: jsonEncode({
+              'is_pass': isPass, // ✅ 对应后端字段名
+              'remark': remark,
+            }),
           )
           .timeout(const Duration(seconds: 15));
       return _parseRes(res);

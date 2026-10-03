@@ -14,6 +14,7 @@ class AdminTheme {
   static const Color danger = Color(0xFFEF4444);
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
+  static const Color textHint = Color(0xFFB0BEC5);
 
   // === 尺寸 ===
   static const double sidebarWidth = 240;
