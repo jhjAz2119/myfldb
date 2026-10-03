@@ -8,12 +8,11 @@ from datetime import datetime
 import os
 import uuid
 
-# ✅ 修复1：加上 sslmode
 DB_CONFIG = {
     "host": "dpg-daudfcegekts73e1alfg-a.singapore-postgres.render.com",
     "port": 5432,
     "user": "myfldb_user",
-    "password": "OOTWPUjbdhe75miJFMEedks9MPby8z",
+    "password": "OOTWPUjbdhe75miJFMEedks9MPby8zUE",
     "database": "myfldb",
     "sslmode": "require"
 }
@@ -21,7 +20,7 @@ DB_CONFIG = {
 UPLOAD_DIR = "uploads/avatars"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# ✅ 修复2：自动建表+补字段
+# ========== 自动建表/补字段 ==========
 def init_database():
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
@@ -37,6 +36,10 @@ def init_database():
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(20) DEFAULT '未设置'")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday DATE")
+        # ✅ 新增字段 —— 全部带默认值
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS id_verified BOOLEAN DEFAULT FALSE")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS balance NUMERIC(10,2) DEFAULT 0.00")
     except Exception:
         pass
     conn.commit()
@@ -105,6 +108,9 @@ def login(req: LoginReq):
                 "gender": user.get("gender", "未设置"),
                 "birthday": user.get("birthday", ""),
                 "user_id": user.get("id"),
+                "created_at": user.get("created_at"),      # ✅ 创建时间
+                "id_verified": user.get("id_verified", False), # ✅ 认证状态
+                "balance": float(user.get("balance", 0.00)),   # ✅ 资金
             }
         return {"code": 400, "msg": "账号或密码错误"}
     except Exception as e:
@@ -121,6 +127,7 @@ def register(req: RegisterReq):
             cur.close()
             conn.close()
             return {"code": 400, "msg": "账号已存在"}
+        # created_at / id_verified / balance 都有默认值，不用手动传
         cur.execute(
             "INSERT INTO users (account, password) VALUES (%s, %s) RETURNING id",
             (req.account, req.password)
@@ -156,7 +163,7 @@ def update_profile(req: UpdateProfileReq):
             cur.execute(sql, params)
             conn.commit()
         cur.execute(
-            "SELECT account, nickname, avatar, gender, birthday, id FROM users WHERE account = %s",
+            "SELECT account, nickname, avatar, gender, birthday, id, created_at, id_verified, balance FROM users WHERE account = %s",
             (req.account,)
         )
         row = cur.fetchone()
@@ -172,6 +179,9 @@ def update_profile(req: UpdateProfileReq):
                 "gender": row.get("gender", "未设置"),
                 "birthday": row["birthday"],
                 "user_id": row["id"],
+                "created_at": row.get("created_at"),      # ✅
+                "id_verified": row.get("id_verified", False), # ✅
+                "balance": float(row.get("balance", 0.00)),   # ✅
             }
         return {"code": 404, "msg": "用户不存在"}
     except Exception as e:
@@ -264,7 +274,7 @@ def get_version():
         "currentVersion": "1.0.0",
         "latestVersion": "1.0.0",
         "downloadUrl": "https://github.com/jhjAz2119/myfldb/releases/download/v1.0.0/app-release.apk",
-        "updateNote": "1. 修复SSL连接\n2. 自动建表补字段",
+        "updateNote": "1. 修复数据库密码+SSL\n2. 新增创建时间/认证状态/资金字段",
     }
 
 # ========== 静态文件 —— 必须放最后！ ==========
